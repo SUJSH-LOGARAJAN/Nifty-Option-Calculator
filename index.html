@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nifty Option Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for smooth transitions and animations */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .dark {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        
+        .dark .bg-white {
+            background-color: #2d3748;
+        }
+        
+        .dark .text-gray-700 {
+            color: #e2e8f0;
+        }
+        
+        .dark .text-gray-600 {
+            color: #cbd5e0;
+        }
+        
+        .dark .border-gray-300 {
+            border-color: #4a5568;
+        }
+        
+        .dark .bg-gray-50 {
+            background-color: #2d3748;
+        }
+        
+        .dark .shadow-md {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Nifty Option Calculator</h1>
+                    <p class="text-gray-600 mt-1">Calculate option payoffs, breakeven points, and margins</p>
+                </div>
+                <!-- Dark Mode Toggle -->
+                <button id="darkModeToggle" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+                    <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Input Form Card -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6 card">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Option Details</h2>
+            <form id="optionForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Strike Price -->
+                    <div>
+                        <label for="strikePrice" class="block text-sm font-medium text-gray-700 mb-1">
+                            Strike Price
+                        </label>
+                        <input type="number" id="strikePrice" 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter strike price" min="0" step="0.05" required>
+                        <span class="text-red-500 text-sm hidden" id="strikeError">Please enter a valid strike price</span>
+                    </div>
+
+                    <!-- Premium -->
+                    <div>
+                        <label for="premium" class="block text-sm font-medium text-gray-700 mb-1">
+                            Premium
+                        </label>
+                        <input type="number" id="premium" 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter premium" min="0" step="0.05" required>
+                        <span class="text-red-500 text-sm hidden" id="premiumError">Please enter a valid premium</span>
+                    </div>
+
+                    <!-- Option Type -->
+                    <div>
+                        <label for="optionType" class="block text-sm font-medium text-gray-700 mb-1">
+                            Option Type
+                        </label>
+                        <select id="optionType" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="CE">Call Option (CE)</option>
+                            <option value="PE">Put Option (PE)</option>
+                        </select>
+                    </div>
+
+                    <!-- Lot Size -->
+                    <div>
+                        <label for="lotSize" class="block text-sm font-medium text-gray-700 mb-1">
+                            Lot Size
+                        </label>
+                        <input type="number" id="lotSize" 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter lot size" min="1" value="50" required>
+                        <span class="text-red-500 text-sm hidden" id="lotError">Please enter a valid lot size</span>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" 
+                            class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        Calculate
+                    </button>
+                    <button type="button" id="resetBtn"
+                            class="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors font-medium">
+                        Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <!-- Output Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <!-- Breakeven Price -->
+                <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Breakeven Price</h3>
+                    <p class="text-2xl font-bold text-gray-800" id="breakevenPrice">-</p>
+                </div>
+
+                <!-- Max Profit -->
+                <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Max Profit</h3>
+                    <p class="text-2xl font-bold text-green-600" id="maxProfit">-</p>
+                </div>
+
+                <!-- Max Loss -->
+                <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Max Loss</h3>
+                    <p class="text-2xl font-bold text-red-600" id="maxLoss">-</p>
+                </div>
+
+                <!-- Total Cost -->
+                <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Total Cost</h3>
+                    <p class="text-2xl font-bold text-gray-800" id="totalCost">-</p>
+                </div>
+
+                <!-- Margin -->
+                <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Margin</h3>
+                    <p class="text-2xl font-bold text-gray-800" id="margin">-</p>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="bg-white rounded-xl shadow-md p-6 card fade-in">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Payoff Chart</h3>
+                <div class="relative" style="height: 400px;">
+                    <canvas id="payoffChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="fixed bottom-0 left-0 right-0 bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-10">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Disclaimer: This tool is for educational and informational purposes only. It is not investment advice. Trading in derivatives involves significant risk. Please consult your financial advisor before making any decisions.
+            </p>
+            <a href="#" id="privacyPolicyLink" class="text-xs text-blue-600 hover:underline dark:text-blue-500">Privacy Policy</a>
+        </div>
+    </footer>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative fade-in">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white">&times;</button>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Privacy Policy</h2>
+            <div class="space-y-4 text-gray-600 dark:text-gray-300">
+                <p>Your privacy is important to us. This policy explains what information is collected when you use the Nifty Option Calculator and how it is used.</p>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-700 dark:text-gray-200">Data Collection</h3>
+                    <p>We do not collect, store, or share any personal or financial information you enter into the calculator. All calculations are performed directly in your browser, and the data (like strike prices or premiums) is not sent to our servers.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-gray-700 dark:text-gray-200">Local Storage</h3>
+                    <p>The app uses your browser's local storage solely to remember your preference for dark or light mode. No other personal data is stored.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-gray-700 dark:text-gray-200">No Investment Advice</h3>
+                    <p>This application is provided for educational and informational purposes only. It does not provide personalized investment advice. The results generated are based on standard option payoff formulas and should not be considered a recommendation to buy or sell any financial instrument.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold text-gray-700 dark:text-gray-200">Contact Us</h3>
+                    <p>If you have any questions or concerns about this privacy policy or the app, please feel free to contact us at <a href="mailto:support@example.com" class="text-blue-600 hover:underline">support@example.com</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let chart = null;
+
+        // Dark mode toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const privacyModal = document.getElementById('privacyModal');
+        const body = document.body;
+
+        darkModeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark');
+            const isDark = body.classList.contains('dark');
+            localStorage.setItem('darkMode', isDark);
+        });
+
+        // Check for saved dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            body.classList.add('dark');
+        }
+
+        // Adjust main content padding to avoid footer overlap
+        function adjustContentPadding() {
+            document.querySelector('main').style.paddingBottom = `${document.querySelector('footer').offsetHeight + 32}px`;
+        }
+
+        // Form validation
+        function validateInputs() {
+            let isValid = true;
+            const strikePrice = parseFloat(document.getElementById('strikePrice').value);
+            const premium = parseFloat(document.getElementById('premium').value);
+            const lotSize = parseInt(document.getElementById('lotSize').value);
+
+            // Validate strike price
+            if (isNaN(strikePrice) || strikePrice <= 0) {
+                document.getElementById('strikeError').classList.remove('hidden');
+                isValid = false;
+            } else {
+                document.getElementById('strikeError').classList.add('hidden');
+            }
+
+            // Validate premium
+            if (isNaN(premium) || premium <= 0) {
+                document.getElementById('premiumError').classList.remove('hidden');
+                isValid = false;
+            } else {
+                document.getElementById('premiumError').classList.add('hidden');
+            }
+
+            // Validate lot size
+            if (isNaN(lotSize) || lotSize <= 0) {
+                document.getElementById('lotError').classList.remove('hidden');
+                isValid = false;
+            } else {
+                document.getElementById('lotError').classList.add('hidden');
+            }
+
+            return isValid;
+        }
+
+        // Updated calculation function with correct formulas
+        function calculateOption({
+          strikePrice,
+          premium,
+          lotSize,
+          optionType // "CE" or "PE"
+        }) {
+          // Convert inputs to numbers
+          const strike = Number(strikePrice);
+          const prem = Number(premium);
+          const lot = Number(lotSize);
+
+          // ✅ Total Cost (Premium × Lot)
+          const totalCost = prem * lot;
+
+          let breakeven = 0;
+          let maxProfit = '';
+          let maxLoss = totalCost;
+
+          if (optionType === 'CE') {
+            // ✅ Call Option
+            breakeven = strike + prem;
+            maxProfit = 'Unlimited';
+
+          } else if (optionType === 'PE') {
+            // ✅ Put Option
+            breakeven = strike - prem;
+            // If stock goes to zero → max profit = strike × lot - total cost
+            maxProfit = ((strike * lot) - totalCost).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+          }
+
+          // Format numbers with INR
+          const formatted = (value) => 
+            value.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+
+          return {
+            breakeven: formatted(breakeven),
+            totalCost: formatted(totalCost),
+            maxLoss: formatted(maxLoss),
+            maxProfit: (maxProfit === 'Unlimited') ? maxProfit : maxProfit,
+            margin: formatted(0) // For buyers, margin is 0
+          };
+        }
+
+        // Generate payoff data
+        function generatePayoffData(strike, premium, optionType) {
+            const range = 500;
+            const step = 10;
+            const data = [];
+            
+            for (let price = strike - range; price <= strike + range; price += step) {
+                let payoff;
+                
+                if (optionType === 'CE') {
+                    payoff = Math.max(0, price - strike) - premium;
+                } else {
+                    payoff = Math.max(0, strike - price) - premium;
+                }
+                
+                data.push({
+                    x: price,
+                    y: payoff // Per share payoff (not multiplied by lot size for chart)
+                });
+            }
+            
+            return data;
+        }
+
+        // Create or update chart
+        function createChart(data, optionType) {
+            const ctx = document.getElementById('payoffChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            const isDark = body.classList.contains('dark');
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: `${optionType} Payoff`,
+                        data: data,
+                        borderColor: optionType === 'CE' ? 'rgb(59, 130, 246)' : 'rgb(239, 68, 68)',
+                        backgroundColor: optionType === 'CE' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: isDark ? '#e2e8f0' : '#374151'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Profit/Loss per share: ₹${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Underlying Price',
+                                color: isDark ? '#e2e8f0' : '#374151'
+                            },
+                            ticks: {
+                                color: isDark ? '#cbd5e0' : '#6b7280'
+                            },
+                            grid: {
+                                color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Profit/Loss per Share (₹)',
+                                color: isDark ? '#e2e8f0' : '#374151'
+                            },
+                            ticks: {
+                                color: isDark ? '#cbd5e0' : '#6b7280',
+                                callback: function(value) {
+                                    return '₹' + value.toFixed(0);
+                                }
+                            },
+                            grid: {
+                                color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update results display with formatted numbers
+        function updateResults(metrics) {
+            document.getElementById('breakevenPrice').textContent = metrics.breakeven;
+            document.getElementById('maxProfit').textContent = metrics.maxProfit;
+            document.getElementById('maxLoss').textContent = metrics.maxLoss;
+            document.getElementById('totalCost').textContent = metrics.totalCost;
+            document.getElementById('margin').textContent = metrics.margin;
+            
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+
+        // Form submit handler
+        document.getElementById('optionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!validateInputs()) {
+                return;
+            }
+
+            const strike = parseFloat(document.getElementById('strikePrice').value);
+            const premium = parseFloat(document.getElementById('premium').value);
+            const optionType = document.getElementById('optionType').value;
+            const lotSize = parseInt(document.getElementById('lotSize').value);
+
+            // Calculate metrics with corrected formulas
+            const metrics = calculateOption({
+                strikePrice: strike,
+                premium: premium,
+                lotSize: lotSize,
+                optionType: optionType
+            });
+            
+            // Generate payoff data
+            const payoffData = generatePayoffData(strike, premium, optionType);
+            
+            // Update display
+            updateResults(metrics);
+            createChart(payoffData, optionType);
+        });
+
+        // Reset button handler
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            document.getElementById('optionForm').reset();
+            document.getElementById('lotSize').value = 50; // Reset to default
+            document.getElementById('resultsSection').classList.add('hidden');
+            
+            // Hide all error messages
+            document.querySelectorAll('.text-red-500').forEach(error => {
+                error.classList.add('hidden');
+            });
+            
+            // Destroy chart if exists
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+        });
+
+        // Auto-fill lot size for Nifty
+        document.getElementById('lotSize').addEventListener('focus', () => {
+            if (!document.getElementById('lotSize').value) {
+                document.getElementById('lotSize').value = 50;
+            }
+        });
+
+        // Modal handling
+        const privacyLink = document.getElementById('privacyPolicyLink');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        privacyLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            privacyModal.classList.remove('hidden');
+            privacyModal.classList.add('flex');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            privacyModal.classList.add('hidden');
+            privacyModal.classList.remove('flex');
+        });
+
+        // Close modal on outside click
+        privacyModal.addEventListener('click', (e) => {
+            if (e.target === privacyModal) {
+                privacyModal.classList.add('hidden');
+                privacyModal.classList.remove('flex');
+            }
+        });
+
+        // Adjust padding on load and resize
+        window.addEventListener('load', adjustContentPadding);
+        window.addEventListener('resize', adjustContentPadding);
+    </script>
+</body>
+</html>
