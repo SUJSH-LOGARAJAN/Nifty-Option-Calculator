@@ -85,7 +85,21 @@
         <div class="bg-white rounded-xl shadow-md p-6 mb-6 card">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Option Details</h2>
             <form id="optionForm" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Index/Instrument Selector -->
+                <div>
+                    <label for="instrumentSelect" class="block text-sm font-medium text-gray-700 mb-1">
+                        Select Index / Instrument
+                    </label>
+                    <select id="instrumentSelect" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="50">NIFTY 50</option>
+                        <option value="15">BANKNIFTY</option>
+                        <option value="40">FINNIFTY</option>
+                        <option value="75">MIDCPNIFTY</option>
+                        <option value="10">SENSEX</option>
+                    </select>
+                </div> 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Strike Price -->
                     <div>
                         <label for="strikePrice" class="block text-sm font-medium text-gray-700 mb-1">
@@ -115,8 +129,10 @@
                         </label>
                         <select id="optionType" 
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="CE">Call Option (CE)</option>
-                            <option value="PE">Put Option (PE)</option>
+                            <option value="CE">Buy Call Option (CE)</option>
+                            <option value="PE">Buy Put Option (PE)</option>
+                            <option value="ShortCE">Sell Call Option (Short CE)</option>
+                            <option value="ShortPE">Sell Put Option (Short PE)</option>
                         </select>
                     </div>
 
@@ -130,6 +146,7 @@
                                placeholder="Enter lot size" min="1" value="50" required>
                         <span class="text-red-500 text-sm hidden" id="lotError">Please enter a valid lot size</span>
                     </div>
+
                 </div>
 
                 <!-- Buttons -->
@@ -247,6 +264,15 @@
             localStorage.setItem('darkMode', isDark);
         });
 
+        // Instrument data
+        const instruments = {
+            "NIFTY 50": 50,
+            "BANKNIFTY": 15,
+            "FINNIFTY": 40,
+            "MIDCPNIFTY": 75,
+            "SENSEX": 10
+        };
+
         // Check for saved dark mode preference
         if (localStorage.getItem('darkMode') === 'true') {
             body.classList.add('dark');
@@ -297,42 +323,56 @@
           premium,
           lotSize,
           optionType // "CE" or "PE"
-        }) {
-          // Convert inputs to numbers
-          const strike = Number(strikePrice);
-          const prem = Number(premium);
-          const lot = Number(lotSize);
+        }) { 
+            const strike = Number(strikePrice);
+            const prem = Number(premium);
+            const lot = Number(lotSize);
 
-          // ✅ Total Cost (Premium × Lot)
-          const totalCost = prem * lot;
-
-          let breakeven = 0;
-          let maxProfit = '';
-          let maxLoss = totalCost;
-
-          if (optionType === 'CE') {
-            // ✅ Call Option
-            breakeven = strike + prem;
-            maxProfit = 'Unlimited';
-
-          } else if (optionType === 'PE') {
-            // ✅ Put Option
-            breakeven = strike - prem;
-            // If stock goes to zero → max profit = strike × lot - total cost
-            maxProfit = ((strike * lot) - totalCost).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
-          }
-
-          // Format numbers with INR
-          const formatted = (value) => 
+            const formatted = (value) =>
             value.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
 
-          return {
-            breakeven: formatted(breakeven),
-            totalCost: formatted(totalCost),
-            maxLoss: formatted(maxLoss),
-            maxProfit: (maxProfit === 'Unlimited') ? maxProfit : maxProfit,
-            margin: formatted(0) // For buyers, margin is 0
-          };
+            let breakeven, maxProfit, maxLoss, totalCost, margin;
+            const premiumReceived = prem * lot;
+            const premiumPaid = prem * lot;
+
+            switch (optionType) {
+                case 'CE': // Buy Call
+                    breakeven = strike + prem;
+                    maxProfit = 'Unlimited';
+                    maxLoss = premiumPaid;
+                    totalCost = premiumPaid;
+                    margin = 0;
+                    break;
+                case 'PE': // Buy Put
+                    breakeven = strike - prem;
+                    maxProfit = (strike * lot) - premiumPaid;
+                    maxLoss = premiumPaid;
+                    totalCost = premiumPaid;
+                    margin = 0;
+                    break;
+                case 'ShortCE': // Sell Call
+                    breakeven = strike + prem;
+                    maxProfit = premiumReceived;
+                    maxLoss = 'Unlimited';
+                    totalCost = 0; // Seller receives premium
+                    margin = strike * lot * 0.15; // Placeholder margin
+                    break;
+                case 'ShortPE': // Sell Put
+                    breakeven = strike - prem;
+                    maxProfit = premiumReceived;
+                    maxLoss = (strike * lot) - premiumReceived;
+                    totalCost = 0; // Seller receives premium
+                    margin = strike * lot * 0.15; // Placeholder margin
+                    break;
+            }
+
+            return {
+                breakeven: formatted(breakeven),
+                totalCost: formatted(totalCost),
+                maxLoss: (maxLoss === 'Unlimited') ? maxLoss : formatted(maxLoss),
+                maxProfit: (maxProfit === 'Unlimited') ? maxProfit : formatted(maxProfit),
+                margin: formatted(margin)
+            };
         }
 
         // Generate payoff data
@@ -344,11 +384,15 @@
             for (let price = strike - range; price <= strike + range; price += step) {
                 let payoff;
                 
-                if (optionType === 'CE') {
+                if (optionType === 'CE') { // Long Call
                     payoff = Math.max(0, price - strike) - premium;
-                } else {
+                } else if (optionType === 'PE') { // Long Put
                     payoff = Math.max(0, strike - price) - premium;
-                }
+                } else if (optionType === 'ShortCE') { // Short Call
+                    payoff = premium - Math.max(0, price - strike);
+                } else { // ShortPE
+                    payoff = premium - Math.max(0, strike - price);
+                } 
                 
                 data.push({
                     x: price,
@@ -374,9 +418,9 @@
                 data: {
                     datasets: [{
                         label: `${optionType} Payoff`,
-                        data: data,
-                        borderColor: optionType === 'CE' ? 'rgb(59, 130, 246)' : 'rgb(239, 68, 68)',
-                        backgroundColor: optionType === 'CE' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        data: data, 
+                        borderColor: optionType.includes('CE') ? 'rgb(59, 130, 246)' : 'rgb(239, 68, 68)',
+                        backgroundColor: optionType.includes('CE') ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                         borderWidth: 2,
                         pointRadius: 0,
                         pointHoverRadius: 5,
@@ -481,11 +525,14 @@
         // Reset button handler
         document.getElementById('resetBtn').addEventListener('click', () => {
             document.getElementById('optionForm').reset();
-            document.getElementById('lotSize').value = 50; // Reset to default
+            document.getElementById('instrumentSelect').value = '50'; // Reset index
+            document.getElementById('optionType').value = 'CE'; // Reset dropdown
+            document.getElementById('lotSize').value = 50; // Reset lot size
             document.getElementById('resultsSection').classList.add('hidden');
             
             // Hide all error messages
             document.querySelectorAll('.text-red-500').forEach(error => {
+
                 error.classList.add('hidden');
             });
             
@@ -496,12 +543,26 @@
             }
         });
 
-        // Auto-fill lot size for Nifty
-        document.getElementById('lotSize').addEventListener('focus', () => {
-            if (!document.getElementById('lotSize').value) {
-                document.getElementById('lotSize').value = 50;
+        // Handle instrument change to update lot size
+        document.getElementById('instrumentSelect').addEventListener('change', (e) => {
+            // Update lot size to the default for the selected instrument
+            document.getElementById('lotSize').value = e.target.value;
+
+            // Clear other input fields for fresh entry
+            document.getElementById('strikePrice').value = '';
+            document.getElementById('premium').value = '';
+            document.getElementById('optionType').value = 'CE'; // Reset option type
+
+            // Hide results and destroy chart
+            document.getElementById('resultsSection').classList.add('hidden');
+            if (chart) {
+                chart.destroy();
+                chart = null;
             }
-        });
+            document.querySelectorAll('.text-red-500').forEach(error => {
+                error.classList.add('hidden');
+            });
+        }); 
 
         // Modal handling
         const privacyLink = document.getElementById('privacyPolicyLink');
